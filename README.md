@@ -1,3 +1,7 @@
+# Support this Project
+
+[![Patreon](https://www.dropbox.com/s/gr6k9j359b744tl/patreon-logo1.png?dl=1)](https://patreon.com/km4ack) | [![Tip Jar](https://www.dropbox.com/s/tk4w0tery1ugrqz/tip-jar-1024x900.png?dl=1)](https://paypal.me/km4ack)
+
 # Description
 
 Build-a-Pi will allow you to get up and running fast with a Raspberry Pi for ham radio.
@@ -92,6 +96,9 @@ Software TNC. In this setup, Direwolf is used for a 2M packet connection with Pa
 #### AX25:
 AX.25 tools for Direwolf & Pat. Recommended if installing Pat. 
 
+#### gARIM/vARIM:
+ARIM means "Amateur Radio Instant Messaging" https://www.whitemesa.net/garim/garim.html and https://www.whitemesa.net/varim/varim.html using ARDROP or VARA modem
+
 #### HAMLIB:
 Rig contol software. https://sourceforge.net/projects/hamlib/
 
@@ -155,3 +162,8 @@ Graphic viewer to view/manage log files.
 
 #### Gparted
 Disk utility.
+
+# Support this Project
+
+[![Patreon](https://www.dropbox.com/s/gr6k9j359b744tl/patreon-logo1.png?dl=1)](https://patreon.com/km4ack) | [![Tip Jar](https://www.dropbox.com/s/tk4w0tery1ugrqz/tip-jar-1024x900.png?dl=1)](https://paypal.me/km4ack)
+

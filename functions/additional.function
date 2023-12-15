@@ -26,7 +26,67 @@ PAT() {
 	fi
 
 	if [ `getconf LONG_BIT` = '64' ]; then
+	#install deb file for 64 bit systems
+	NEWPATV=$(curl -s https://github.com/la5nta/pat/releases | grep arm64 | head -1 | sed 's/.*pat_/pat_/' | sed 's/<\/a>.*$//')
+	NEWPAT=$(echo ${NEWPATV} | sed 's/pat_//' | sed 's/_linux_arm64.deb//' | sed 's/0\.//')
+	echo "new pat v ${NEWPATV}"
+	echo "new pat ${NEWPAT}"
+	wget --tries 2 --connect-timeout=60 https://github.com/la5nta/pat/releases/download/v0.${NEWPAT}/${NEWPATV}
+	sudo dpkg -i ${DIR}/${NEWPATV}
+	
+	else
 
+	#install deb file for 32 bit systems
+	NEWPATV=$(curl -s https://github.com/la5nta/pat/releases | grep armhf | head -1 | sed 's/.*pat_/pat_/' | sed 's/<\/a>.*$//')
+	NEWPAT=$(echo ${NEWPATV} | sed 's/pat_//' | sed 's/_linux_armhf.deb//' | sed 's/0\.//')
+	echo "new pat v ${NEWPATV}"
+	echo "new pat ${NEWPAT}"
+	wget --tries 2 --connect-timeout=60 https://github.com/la5nta/pat/releases/download/v0.${NEWPAT}/${NEWPATV}
+	sudo dpkg -i ${DIR}/${NEWPATV}
+	fi
+
+	#lines below configure pat with user info
+	pat http &
+	sudo killall pat
+	sudo systemctl start pat@${WHO}
+	sudo systemctl enable pat@${WHO}
+	cd ${DIR}
+	PAT_VERSION=$(pat version | awk '{print $2}' | awk -F "." '{print $2}')
+	#The Pat Winlink config file will change location in version 0.12. The below if statement
+	#checks to see which version is installed.
+	#check to see if pat version is 12 or greater. Change config file location
+	#depending on which version.
+	if [ "$PAT_VERSION" -le 11 ]; then
+	echo "pat version 11 detected"
+	FIG=$HOME/.wl2k/config.json
+	else
+	echo "pat version 12 or greater detected"
+	FIG=$XDG_CONFIG_HOME/pat/config.json
+	fi
+	#set callsign
+	sed -i "s/\"mycall\": \".*\",/\"mycall\": \"${CALL}\",/" ${FIG}
+	#set password
+	WL2KPASS=$(grep "WL2KPASS" ${MYPATH}/config | sed 's/"//g' | sed 's/WL2KPASS=//')
+	sed -i "s/\"secure_login_password\": \".*\",/\"secure_login_password\": \""$WL2KPASS"\",/" ${FIG}
+	#set locator
+	sed -i "s/\"locator\": \".*\",/\"locator\": \"$GRID\",/" ${FIG}
+	#Change localhost to 0.0.0.0
+	#This is a secutiry risk. See https://github.com/km4ack/pi-build/issues/299
+	#Changed to 127.0.0.1 on 11OCT2021 KM4ACK
+	sed -i "s/\"http_addr\": \".*\",/\"http_addr\": \"127.0.0.1:$PORT\",/" ${FIG}
+	#jq '.ax25.rig = '\"my-rig\"'' ${FIG} | jq '.ardop.rig = '\"my-rig\"'' | jq '.hamlib_rigs = {'\"my-rig\"': {"address": "127.0.0.1:4532", "network": "tcp"}}' >~/Desktop/config.json
+	jq '.ax25.rig = '\"my-rig\"'' ${FIG} | jq '.varafm.rig = '\"my-rig\"'' | jq '.varahf.rig = '\"my-rig\"'' | jq '.ardop.rig = '\"my-rig\"'' | \
+	jq '.varafm.ptt_ctrl = 'true'' | jq '.varahf.ptt_ctrl = 'true'' | \
+	jq '.hamlib_rigs = {'\"my-rig\"': {"address": "127.0.0.1:4532", "network": "tcp"}}' >~/Desktop/config.json	
+	mv ${HOME}/Desktop/config.json ${FIG}
+	sed -i 's/"enable_http": false,/"enable_http": true,/' ${FIG}
+
+	if [ -f ${DIR}/config.json ]; then
+		mv ${DIR}/config.json ${HOME}/.wl2k/
+	fi
+
+	PAT_OLD_SOURCE_INSTALL() {
+	#This code is left for reference. This was used ot build pat from source when 64bit Pi OS was first released. 20220922
 	#reference:
 	#https://www.jeremymorgan.com/tutorials/raspberry-pi/install-go-raspberry-pi/
 	#https://github.com/la5nta/pat/wiki/Building-from-source
@@ -53,52 +113,7 @@ PAT() {
 	sudo cp $HOME/pat/debian/pat@.service /lib/systemd/system/
 	sudo cp $HOME/pat/pat /usr/bin/
 	rm -rf $HOME/pat
-	else
-	#install deb file for 32 bit systems
-	NEWPATV=$(curl -s https://github.com/la5nta/pat/releases | grep armhf | head -1 | sed 's/.*pat_/pat_/' | sed 's/<\/a>.*$//')
-	NEWPAT=$(echo ${NEWPATV} | sed 's/pat_//' | sed 's/_linux_armhf.deb//' | sed 's/0\.//')
-	echo "new pat v ${NEWPATV}"
-	echo "new pat ${NEWPAT}"
-	wget --tries 2 --connect-timeout=60 https://github.com/la5nta/pat/releases/download/v0.${NEWPAT}/${NEWPATV}
-	sudo dpkg -i ${DIR}/${NEWPATV}
-	fi
-
-	#lines below configure pat with user info
-	pat http &
-	sudo killall pat
-	sudo systemctl start pat@${WHO}
-	sudo systemctl enable pat@${WHO}
-	cd ${DIR}
-	PAT_VERSION=$(pat version | awk '{print $2}' | sed 's/v0.//;s/.0//')
-	#The Pat Winlink config file will change location in version 0.12. The below if statement
-	#checks to see which version is installed.
-	#check to see if pat version is 12 or greater. Change config file location
-	#depending on which version.
-	if [ "$PAT_VERSION" -le 11 ]; then
-	echo "pat version 11 detected"
-	FIG=$HOME/.wl2k/config.json
-	else
-	echo "pat version 12 or greater detected"
-	FIG=$XDG_CONFIG_HOME/pat/config.json
-	fi
-	#set callsign
-	sed -i "s/\"mycall\": \".*\",/\"mycall\": \"${CALL}\",/" ${FIG}
-	#set password
-	WL2KPASS=$(grep "WL2KPASS" ${MYPATH}/config | sed 's/"//g' | sed 's/WL2KPASS=//')
-	sed -i "s/\"secure_login_password\": \".*\",/\"secure_login_password\": \""$WL2KPASS"\",/" ${FIG}
-	#set locator
-	sed -i "s/\"locator\": \".*\",/\"locator\": \"$GRID\",/" ${FIG}
-	#Change localhost to 0.0.0.0
-	#This is a secutiry risk. See https://github.com/km4ack/pi-build/issues/299
-	#Changed to 127.0.0.1 on 11OCT2021 KM4ACK
-	sed -i "s/\"http_addr\": \".*\",/\"http_addr\": \"127.0.0.1:$PORT\",/" ${FIG}
-	jq '.ax25.rig = '\"my-rig\"'' ${FIG} | jq '.ardop.rig = '\"my-rig\"'' | jq '.hamlib_rigs = {'\"my-rig\"': {"address": "127.0.0.1:4532", "network": "tcp"}}' >~/Desktop/config.json
-	mv ${HOME}/Desktop/config.json ${FIG}
-	sed -i 's/"enable_http": false,/"enable_http": true,/' ${FIG}
-
-	if [ -f ${DIR}/config.json ]; then
-		mv ${DIR}/config.json ${HOME}/.wl2k/
-	fi
+	}
 
 }
 ##################################
@@ -232,10 +247,11 @@ WSJTX() {
 
 	sudo apt install -y build-essential git cmake gfortran fftw3-dev qtbase5-dev qttools5-dev libqt5serialport5-dev  qtmultimedia5-dev libqt5multimedia5-plugins libqt5sql5-sqlite autoconf automake libtool texinfo libusb-1.0-0-dev libudev-dev libboost-all-dev asciidoctor
 
-	FT8PKG=$(curl -s https://physics.princeton.edu/pulsar/k1jt/wsjtx.html | grep .tgz | sed 's/.*="//;s/">.*$//' | head -1)
+	#credit to Michael Shriver for this fix
+	FT8PKG=$(curl -s https://wsjt.sourceforge.io/wsjtx.html | grep .tgz | sed 's|.*">\(.*\.tgz\)</.*|\1|' | head -1)
 	FT8DIR=$(echo $FT8PKG | sed 's/.tgz//')
 	cd ${BUILDDIR}
-	wget --tries 2 --connect-timeout=60 https://physics.princeton.edu/pulsar/k1jt/$FT8PKG
+	wget --tries 2 --connect-timeout=60 https://sourceforge.net/projects/wsjt/files/$FT8PKG
 	tar -xvf $FT8PKG
 	rm $FT8PKG
 	cd $FT8DIR
@@ -399,7 +415,42 @@ sudo make install
 ##################################
 CHIRP() {
 
-sudo apt install -y chirp
+	#sudo apt install -y chirp
+	#sample link - https://github.com/goldstar611/chirp-appimage/releases/download/20230202/Chirp-next-20230202-armhf.AppImage
+
+	cd ${DIR} || return
+	sudo apt install libfuse2
+	CHIRPDATE=$(curl -s https://github.com/goldstar611/chirp-appimage | grep "releases/tag/" | sed 's|.*releases/tag/||;s|">||')
+
+	#determine if 32/64 bit and set download link accordingly. issue #382
+	if [ `getconf LONG_BIT` = '32' ]; then
+	
+	LINK="https://github.com/goldstar611/chirp-appimage/releases/download/$CHIRPDATE/Chirp-next-$CHIRPDATE-armhf.AppImage"
+
+	else
+
+	LINK="https://github.com/goldstar611/chirp-appimage/releases/download/$CHIRPDATE/Chirp-next-$CHIRPDATE-aarch64.AppImage"
+
+	fi
+
+	wget $LINK
+	CHIRP=$(ls | grep Chirp-next)
+	sudo mv $CHIRP /usr/local/bin/chirp
+	sudo chmod +x /usr/local/bin/chirp
+
+cat >chirp.desktop <<EOF
+[Desktop Entry]
+Name=Chirp
+Comment=Radio Programming Software
+GenericName=Chirp
+Exec=/usr/local/bin/chirp
+Icon=qsstv.png
+Type=Application
+Terminal=false
+Categories=HamRadio;
+EOF
+
+	sudo mv chirp.desktop /usr/share/applications/
 
 OLDCODE(){
 	#left for reference
@@ -436,6 +487,27 @@ GARIM() {
 	rm *.gz
 }
 
+
+################################
+#	VARIM
+##################################
+VARIM() {
+	sudo apt-get install -y libfltk1.1-dev 
+	sudo apt-get install -y libfltk1.3-dev
+	VPKG=$(curl -s https://www.whitemesa.net/varim/src/ | grep tar.gz | tail -1 | sed 's/^.*varim/varim/' | sed 's/tar.gz.*$/tar.gz/')
+	cd ${BUILDDIR} || return
+	wget --tries 2 --connect-timeout=60 https://www.whitemesa.net/varim/src/$VPKG
+	tar -xzvf $VPKG
+	DIRR=$(echo $VPKG | sed 's/.tar.gz//')
+	cd ${DIRR} || return
+	./configure
+	make
+	sudo make install
+	sudo make clean
+	cd ${BUILDDIR} || return
+	rm *.gz
+}
+
 ##################################
 #	QSSTV
 ##################################
@@ -444,19 +516,17 @@ QSSTV() {
 
 	cd ${BUILDDIR} || return
 
-	TAR=$(curl -s http://users.telenet.be/on4qz/qsstv/downloads/ | grep tar.gz | sed 's/.*href="//' | sed 's/">.*$//' | tail -1)
-	wget --tries 2 --connect-timeout=60 http://users.telenet.be/on4qz/qsstv/downloads/$TAR
-	tar -xvzf $TAR
-	SSTVTAR=$(ls -d */ | grep qss)
-	cd $SSTVTAR || return
+	git clone https://github.com/ON4QZ/QSSTV
+	cd QSSTV/src || return
+
 	qmake
 	make
 	sudo make install
 	sudo make clean
 	cd ${BUILDDIR} || return
-	rm *.gz
-	mkdir -p /usr/local/share/pixmaps/
-	sudo cp ${BUILDDIR}/${SSTVTAR}/icons/qsstv.png /usr/local/share/pixmaps/
+
+	sudo mkdir -p /usr/local/share/pixmaps/
+	sudo cp ${BUILDDIR}/QSSTV/src/icons/qsstv.png /usr/local/share/pixmaps/
 
 cat >qsstv.desktop <<EOF
 [Desktop Entry]
@@ -473,27 +543,29 @@ EOF
 	sudo mv qsstv.desktop /usr/share/applications/
 
 }
+
 ##################################
 #	GRIDTRACKER
 ##################################
 GRIDTRACKER() {
+	#due to constant changes to GT website, get the download link from a file on KM4ACK github.
+	cd /run/user/$UID/
+	wget https://raw.githubusercontent.com/km4ack/pi-scripts/master/gt-download-links	
 	cd ${HOME} || return
 	sudo apt-get install -y libgconf-2-4
+
 	#determine if 32/64 bit and set download link accordingly. issue #382
 	if [ `getconf LONG_BIT` = '32' ]; then
-	#GRIDDLL=$(curl -s https://download.gridtracker.org/latest_release.html | grep arm32 | sed 's/.*href="//;s/">.*//')
-	GRIDDLL=$(curl -s https://storage.googleapis.com/gt_download/ | awk 'BEGIN{FS="<Key>"; OFS="\n<Key>"} {$1=$1} 1' | grep arm32 | sed '/<Key>nwjs/d;/<Key>test/d' | head -1 | sed 's/<Key>//;s/<\/Key>.*//')	
-	GT_DIR=$(echo $GRIDDLL | sed 's|/.*||')
-	GRIDDLL=$(echo $GRIDDLL | sed 's/.*GridTracker/GridTracker/')
+	GRIDDLL=$(cat /run/user/$UID/gt-download-links | grep arm32 | sed 's/arm32=//')
+	GT_TAR_NAME=$(echo $GRIDDLL | sed 's/.*GridTracker/GridTracker/')
+
 	else
-	#GRIDDLL=$(curl -s https://download.gridtracker.org/latest_release.html | grep arm64 | sed 's/.*href="//;s/">.*//')
-	GRIDDLL=$(curl -s https://storage.googleapis.com/gt_download/ | awk 'BEGIN{FS="<Key>"; OFS="\n<Key>"} {$1=$1} 1' | grep arm32 | sed '/<Key>nwjs/d;/<Key>test/d' | head -1 | sed 's/<Key>//;s/<\/Key>.*//')
-	GT_DIR=$(echo $GRIDDLL | sed 's|/.*||')
-	GRIDDLL=$(echo $GRIDDLL | sed 's/.*GridTracker/GridTracker/')
+	GRIDDLL=$(cat /run/user/$UID/gt-download-links | grep arm64 | sed 's/arm64=//')
+	GT_TAR_NAME=$(echo $GRIDDLL | sed 's/.*GridTracker/GridTracker/')
 	fi
-	wget --tries 2 --connect-timeout=60 https://storage.googleapis.com/gt_download/$GT_DIR/$GRIDDLL
-	GRIDTAR=$(echo $GRIDDLL | sed 's/.*\///g')
-	tar -xzvf $GRIDTAR
+
+	wget --tries 2 --connect-timeout=60 $GRIDDLL
+	tar -xzvf $GT_TAR_NAME
 	rm GridTracker*.gz
 	#determine if 32/64 bit and get correct directory name.
 	if [ `getconf LONG_BIT` = '32' ]; then
@@ -502,6 +574,8 @@ GRIDTRACKER() {
 	OLDFOLDER=$(ls | grep GridTracker*-linux-arm64)
 	fi
 	mv "$OLDFOLDER" $HOME/GridTracker
+
+
 	cat >gridtracker.desktop <<EOF
 [Desktop Entry]
 Name=GridTracker
@@ -520,6 +594,7 @@ EOF
 
 
 }
+
 
 ##################################
 #	PROPAGATION
@@ -892,6 +967,17 @@ GRIDCALC(){
 }
 
 ##################################
+#	Repeater-Start
+##################################
+REPEAT(){
+sudo apt install -y gir1.2-osmgpsmap-1.0 gir1.2-geoclue-2.0 libosmgpsmap-1.0-1
+REPEAT_LATEST=$(curl -s https://sourceforge.net/projects/repeater-start/files/ | grep all.deb | head -1 | sed 's/.*repeater/repeater/;s/".*//')
+cd ${HOME}/Downloads
+wget https://sourceforge.net/projects/repeater-start/files/$REPEAT_LATEST
+sudo dpkg -i $REPEAT_LATEST
+}
+
+##################################
 #	JTDX
 ##################################
 #This code is left in place but no option is given during inital
@@ -912,4 +998,6 @@ JTDX() {
 	sudo apt-get --fix-broken -y install
 	sudo dpkg -i ${VER}
 	rm ${VER}
+
+
 }

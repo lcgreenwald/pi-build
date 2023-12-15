@@ -306,6 +306,7 @@ yad --center --list --checklist --width=600 --height=600 --separator="" \
 	false "GPSUPDATE" "${GPSUPDATE}" "Tool to Manage GPS Devices" \
 	false "ARDOP" "$ARDOP" "Mode for HF" \
 	false "ARDOPGUI" "$ARDOPGUI" "GUI for ARDOP" \
+	false "VARA" "$VARA" "VARA Modem - <b>Pi 4 Required</b>" \
 	false "DIREWOLF" "$DIRE" "Software TNC" \
 	false "AX25" "$AX25" "Data Link Layer Protocol" \
 	false "PULSE" "$PULSE" "Sound server" \
@@ -314,6 +315,22 @@ yad --center --list --checklist --width=600 --height=600 --separator="" \
 BUT=$?
 if [ ${BUT} = 1 ] || [ ${BUT} = 252 ]; then
 	exit
+fi
+
+#If VARA is chosen, make sure we have a Pi 4 to work with. 
+#As of 02OCT2022 the VARA installer only works with the Pi 4.
+VARA_CHK=$(grep VARA ${BASE})
+if [ -n "$VARA_CHK" ]; then
+	FREEMEM=$(free -m | grep Mem: | awk '{ print $2 }')
+	if [ $FREEMEM -lt 1500 ]; then
+	echo "Not enough memory available"
+	yad --form --width=500 --text-align=center --center --title="Build-a-Pi" --text-align=center \
+	--image ${LOGO} --window-icon=${LOGO} --image-on-top --separator="|" --item-separator="|" \
+	--text="<b>Not enough memory</b>\rVARA requires a Pi 4.\r\rVARA will not be installed during the build." \
+	--button=gtk-ok
+	sed -i 's/VARA//;/^$/d' ${BASE}
+	fi
+
 fi
 
 #############################################################
@@ -339,7 +356,7 @@ for the Hot Spot\r</b>NOTE: The last field is the password for the hotspot. You 
 connect to your Pi when it is in hotspot mode <b>This password can only contain letters and numbers</b>" \
 			--title="Build-a-Pi" \
 			--field="Home Wifi SSID":CB "${LIST}" \
-			--field="Home Wifi Password" \
+			--field="Home Wifi Password":H \
 			--field="Hot Spot Password" \
 			--button="Exit":1 \
 			--button="Continue":2 \
@@ -446,10 +463,12 @@ yad --center --list --checklist --width=600 --height=600 --separator="" \
 	false "PAT-MENU" "$PATMENU" "Control for Pat Winlink" \
 	false "CHIRP" "$CHIRP" "Program Radios" \
 	false "GARIM" "$GARIM" "File Transfer Program " \
+	false "VARIM" "$VARIM" "Radio Chat VARA" \
 	false "M0IAX" "$M0IAX" "Tools for JS8Call messages" \
 	false "CONKY" "$CONKY" "System Information Display" \
 	false "WSJTX" "$FT8" "Weak signal digital mode software" \
 	false "JS8CALL" "$JS8" "Weak signal digital mode software" \
+	false "REPEAT" "$REPEAT" "Repeater Directory" \
 	false "XASTIR" "$XASTIR" "APRS Client" \
 	false "YAAC" "$YAAC" "Yet Another APRS Client" \
 	false "PI-APRS" "$PIAPRS" "APRS Messaging Client" \
@@ -492,7 +511,7 @@ if [ -n "$PATCHECK" ]; then
 		--image ${LOGO} --window-icon=${LOGO} --image-on-top --separator="|" --item-separator="|" \
 		--text="<b>version $VERSION</b>" \
 		--field="Six Character Grid Square" "$GRID" \
-		--field="Winlink Password" \
+		--field="Winlink Password":H \
 		--field="<b>Password is case sensitive</b>":LBL \
 		--button="Continue":2)
 	GRID=$(echo $INFO | awk -F "|" '{print $1}')
@@ -515,6 +534,7 @@ yad --center --list --checklist --width=600 --height=600 --separator="" \
 	false "PACKETSEARCH" "$PACKETSEARCH" "Winlink Packet Tool" \
 	false "CALLSIGN" "${CALLSIGN}" "Call Sign Lookup Utility" \
 	false "TEMPCONVERT" "$TEMPCONVERT" "Temperature Converter" \
+	false "HDOCS" "$HDOCS" "Reference Materials PDFs" \
 	false "GPARTED" "$GPARTED" "Disk Utility Application" \
 	false "RTC" "$RTC" "Real Time Clock" \
 	false "SHOWLOG" "$SHOWLOG" "Log File Viewer" \
